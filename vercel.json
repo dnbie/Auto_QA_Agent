@@ -15,4 +15,5 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" }
   ]
-}
+    "buildCommand": "cd frontend && npm ci && npm run build",
+    "installCommand": "npm install --prefix ./backend",
