@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - MyApp</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .login-container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+  }
+  .login-container h1 {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .login-container p.subtitle {
+    color: #888;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .form-group {
+    margin-bottom: 18px;
+  }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+  }
+  .input-wrapper {
+    position: relative;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-group input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102,126,234,.15);
+  }
+  .form-group input.error {
+    border-color: #e24b4a;
+  }
+  .toggle-password {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #999;
+    padding: 4px;
+  }
+  .toggle-password:hover { color: #555; }
+  .error-message {
+    color: #e24b4a;
+    font-size: 12px;
+    margin-top: 4px;
+    min-height: 18px;
+  }
+  .alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert-error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+  .alert-lockout {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .alert-success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+  .btn-login {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  .btn-login:hover { opacity: .9; }
+  .btn-login:active { transform: scale(.98); }
+  .btn-login:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+  .links {
+    text-align: center;
+    margin-top: 18px;
+  }
+  .links a {
+    color: #667eea;
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .links a:hover { text-decoration: underline; }
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="login-container" role="main">
+  <h1>Welcome Back</h1>
+  <p class="subtitle">Sign in to your account</p>
+
+  <div id="alert-error" class="alert alert-error" role="alert"></div>
+  <div id="alert-lockout" class="alert alert-lockout" role="alert"></div>
+  <div id="alert-success" class="alert alert-success" role="alert"></div>
+
+  <form id="loginForm" novalidate>
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required aria-required="true">
+      <div class="error-message" id="email-error" role="alert"></div>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <div class="input-wrapper">
+        <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required aria-required="true">
+        <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility" title="Show password">👁</button>
+      </div>
+      <div class="error-message" id="password-error" role="alert"></div>
+    </div>
+
+    <button type="submit" class="btn-login" id="loginBtn">Login</button>
+  </form>
+
+  <div class="links">
+    <a href="#" id="forgotPassword">Forgot Password?</a>
+  </div>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById('loginForm');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const toggleBtn = document.getElementById('togglePassword');
+  const loginBtn = document.getElementById('loginBtn');
+  const emailError = document.getElementById('email-error');
+  const passwordError = document.getElementById('password-error');
+  const alertError = document.getElementById('alert-error');
+  const alertLockout = document.getElementById('alert-lockout');
+  const alertSuccess = document.getElementById('alert-success');
+
+  let failedAttempts = 0;
+  const MAX_ATTEMPTS = 5;
+  let lockedOut = false;
+
+  // Email regex
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Test credentials
+  const VALID_USERS = [
+    { email: 'admin@example.com', password: 'Admin@123' },
+    { email: 'user@example.com', password: 'User@123' },
+    { email: 'test@myapp.com', password: 'Test@1234' }
+  ];
+
+  function hideAlerts() {
+    alertError.style.display = 'none';
+    alertLockout.style.display = 'none';
+    alertSuccess.style.display = 'none';
+  }
+
+  function showAlert(el, message) {
+    hideAlerts();
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function validateEmail() {
+    const val = emailInput.value.trim();
+    if (!val) {
+      emailError.textContent = 'Email is required';
+      emailInput.classList.add('error');
+      return false;
+    }
+    if (!EMAIL_REGEX.test(val)) {
+      emailError.textContent = 'Please enter a valid email address';
+      emailInput.classList.add('error');
+      return false;
+    }
+    emailError.textContent = '';
+    emailInput.classList.remove('error');
+    return true;
+  }
+
+  function validatePassword() {
+    const val = passwordInput.value;
+    if (!val) {
+      passwordError.textContent = 'Password is required';
+      passwordInput.classList.add('error');
+      return false;
+    }
+    passwordError.textContent = '';
+    passwordInput.classList.remove('error');
+    return true;
+  }
+
+  // Toggle password visibility
+  toggleBtn.addEventListener('click', function() {
+    const isPassword = passwordInput.type === 'password';
+    passwordInput.type = isPassword ? 'text' : 'password';
+    toggleBtn.textContent = isPassword ? '🙈' : '👁';
+    toggleBtn.title = isPassword ? 'Hide password' : 'Show password';
+  });
+
+  // Real-time validation
+  emailInput.addEventListener('blur', validateEmail);
+  passwordInput.addEventListener('blur', validatePassword);
+  emailInput.addEventListener('input', function() {
+    if (emailInput.classList.contains('error')) validateEmail();
+  });
+  passwordInput.addEventListener('input', function() {
+    if (passwordInput.classList.contains('error')) validatePassword();
+  });
+
+  // Form submit
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    hideAlerts();
+
+    if (lockedOut) {
+      showAlert(alertLockout, 'Account is locked due to too many failed attempts. Please try again later or reset your password.');
+      return;
+    }
+
+    const emailValid = validateEmail();
+    const passValid = validatePassword();
+    if (!emailValid || !passValid) return;
+
+    // Simulate loading
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="spinner"></span> Signing in...';
+
+    setTimeout(function() {
+      const email = emailInput.value.trim().toLowerCase();
+      const password = passwordInput.value;
+
+      const matched = VALID_USERS.find(u => u.email === email && u.password === password);
+
+      if (matched) {
+        failedAttempts = 0;
+        showAlert(alertSuccess, 'Login successful! Redirecting to dashboard...');
+        loginBtn.innerHTML = 'Login';
+        loginBtn.disabled = false;
+        setTimeout(function() {
+          window.location.href = '/dashboard.html';
+        }, 1500);
+      } else {
+        failedAttempts++;
+        if (failedAttempts >= MAX_ATTEMPTS) {
+          lockedOut = true;
+          showAlert(alertLockout, 'Account locked after ' + MAX_ATTEMPTS + ' failed attempts. Please reset your password or contact support.');
+          loginBtn.disabled = true;
+          loginBtn.innerHTML = 'Account Locked';
+        } else {
+          const remaining = MAX_ATTEMPTS - failedAttempts;
+          showAlert(alertError, 'Invalid email or password. ' + remaining + ' attempt(s) remaining.');
+          loginBtn.innerHTML = 'Login';
+          loginBtn.disabled = false;
+        }
+      }
+    }, 800);
+  });
+
+  // Forgot password
+  document.getElementById('forgotPassword').addEventListener('click', function(e) {
+    e.preventDefault();
+    alert('A password reset link would be sent to your email address.');
+  });
+})();
+</script>
+
+</body>
+</html>

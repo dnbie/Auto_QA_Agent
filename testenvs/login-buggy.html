@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - BuggyApp</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .login-container {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.15);
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+  }
+  .login-container h1 {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .login-container p.subtitle {
+    color: #888;
+    font-size: 14px;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .form-group {
+    margin-bottom: 18px;
+  }
+  .form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 6px;
+  }
+  .input-wrapper {
+    position: relative;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-group input:focus {
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 3px rgba(231,76,60,.15);
+  }
+  .form-group input.error {
+    border-color: #e24b4a;
+  }
+  /* BUG 1: No toggle-password button styling — toggle exists but is invisible */
+  .toggle-password {
+    display: none;  /* BUG: toggle button is hidden */
+  }
+  .error-message {
+    color: #e24b4a;
+    font-size: 12px;
+    margin-top: 4px;
+    min-height: 18px;
+  }
+  .alert {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .alert-error {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+  }
+  .alert-lockout {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .alert-success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+  }
+  .btn-login {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  .btn-login:hover { opacity: .9; }
+  .btn-login:active { transform: scale(.98); }
+  .btn-login:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+  .links {
+    text-align: center;
+    margin-top: 18px;
+  }
+  .links a {
+    color: #e74c3c;
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .links a:hover { text-decoration: underline; }
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="login-container" role="main">
+  <h1>Welcome Back</h1>
+  <p class="subtitle">Sign in to your account (Buggy Version)</p>
+
+  <div id="alert-error" class="alert alert-error" role="alert"></div>
+  <div id="alert-lockout" class="alert alert-lockout" role="alert"></div>
+  <div id="alert-success" class="alert alert-success" role="alert"></div>
+
+  <form id="loginForm" novalidate>
+    <div class="form-group">
+      <label for="email">Email Address</label>
+      <!-- BUG 2: input type is now "email" with proper validation -->
+      <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email" required>
+      <div class="error-message" id="email-error" role="alert"></div>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Password</label>
+      <div class="input-wrapper">
+        <!-- BUG 3: Password field is type="text" — password is NOT masked -->
+        <input type="text" id="password" name="password" placeholder="Enter your password" autocomplete="current-password" required>
+        <button type="button" class="toggle-password" id="togglePassword" aria-label="Toggle password visibility">👁</button>
+      </div>
+      <div class="error-message" id="password-error" role="alert"></div>
+    </div>
+
+    <button type="submit" class="btn-login" id="loginBtn">Login</button>
+  </form>
+
+  <!-- BUG 4: Forgot Password link is MISSING -->
+  <div class="links">
+    <!-- No forgot password link here -->
+  </div>
+</div>
+
+<script>
+(function() {
+  const form = document.getElementById('loginForm');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const loginBtn = document.getElementById('loginBtn');
+  const emailError = document.getElementById('email-error');
+  const passwordError = document.getElementById('password-error');
+  const alertError = document.getElementById('alert-error');
+  const alertLockout = document.getElementById('alert-lockout');
+  const alertSuccess = document.getElementById('alert-success');
+
+  let failedAttempts = 0;
+  const MAX_ATTEMPTS = 5;
+  let lockedOut = false;
+
+  // BUG 5: Email regex is too permissive — accepts "abc@" as valid
+  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const VALID_USERS = [
+    { email: 'admin@example.com', password: 'Admin@123' },
+    { email: 'user@example.com', password: 'User@123' },
+    { email: 'test@myapp.com', password: 'Test@1234' }
+  ];
+
+  function hideAlerts() {
+    alertError.style.display = 'none';
+    alertLockout.style.display = 'none';
+    alertSuccess.style.display = 'none';
+  }
+
+  function showAlert(el, message) {
+    hideAlerts();
+    el.textContent = message;
+    el.style.display = 'block';
+  }
+
+  function validateEmail() {
+    const val = emailInput.value.trim();
+    if (!val) {
+      emailError.textContent = 'Email is required';
+      emailInput.classList.add('error');
+      return false;
+    }
+    if (!EMAIL_REGEX.test(val)) {
+      emailError.textContent = 'Please enter a valid email address';
+      emailInput.classList.add('error');
+      return false;
+    }
+    emailError.textContent = '';
+    emailInput.classList.remove('error');
+    return true;
+  }
+
+  function validatePassword() {
+    const val = passwordInput.value;
+    if (!val) {
+      passwordError.textContent = 'Password is required';
+      passwordInput.classList.add('error');
+      return false;
+    }
+    passwordError.textContent = '';
+    passwordInput.classList.remove('error');
+    return true;
+  }
+
+  // BUG 6: No toggle password event listener — even if button was visible, it wouldn't work
+
+  emailInput.addEventListener('blur', validateEmail);
+  passwordInput.addEventListener('blur', validatePassword);
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    hideAlerts();
+
+    // BUG 9: No validation at all — accepts any username/password
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '<span class="spinner"></span> Signing in...';
+
+    setTimeout(function() {
+      showAlert(alertSuccess, 'Login successful! Redirecting to dashboard...');
+      loginBtn.innerHTML = 'Login';
+      loginBtn.disabled = false;
+      setTimeout(function() {
+        window.location.href = './dashboard.html';
+      }, 1500);
+    }, 800);
+  });
+})();
+</script>
+
+</body>
+</html>

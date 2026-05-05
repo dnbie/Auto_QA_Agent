@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard - MyApp</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f7fb;
+    min-height: 100vh;
+  }
+  .navbar {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .navbar h1 { color: #fff; font-size: 20px; }
+  .navbar .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #fff;
+    font-size: 14px;
+  }
+  .navbar .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .btn-logout {
+    background: rgba(255,255,255,.2);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.3);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .btn-logout:hover { background: rgba(255,255,255,.3); }
+  .content {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  .welcome-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 32px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.06);
+    margin-bottom: 24px;
+  }
+  .welcome-card h2 { font-size: 22px; color: #333; }
+  .welcome-card p { color: #777; margin-top: 8px; font-size: 14px; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .stat-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
+    text-align: center;
+  }
+  .stat-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .stat-card .number { font-size: 28px; font-weight: 700; color: #333; }
+  .stat-card .label { font-size: 13px; color: #999; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <h1>MyApp Dashboard</h1>
+  <div class="user-info">
+    <div class="avatar">U</div>
+    <span>Welcome, User</span>
+    <button class="btn-logout" id="logoutBtn">Logout</button>
+  </div>
+</nav>
+
+<div class="content">
+  <div class="welcome-card">
+    <h2>Welcome to your Dashboard!</h2>
+    <p>You have successfully logged in. This is your home page.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="icon">📊</div>
+      <div class="number">24</div>
+      <div class="label">Total Projects</div>
+    </div>
+    <div class="stat-card">
+      <div class="icon">✅</div>
+      <div class="number">18</div>
+      <div class="label">Completed</div>
+    </div>
+    <div class="stat-card">
+      <div class="icon">⏳</div>
+      <div class="number">6</div>
+      <div class="label">In Progress</div>
+    </div>
+    <div class="stat-card">
+      <div class="icon">👥</div>
+      <div class="number">12</div>
+      <div class="label">Team Members</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('logoutBtn').addEventListener('click', function() {
+    window.location.href = './login.html';
+  });
+</script>
+
+</body>
+</html>
