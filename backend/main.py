@@ -13,13 +13,24 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # Import test control module
-from test_control import (
-    PromptProcessor,
-    TestExecutor,
-    BugFixOrchestrator,
-    TestSpec,
-    TestResult,
-)
+try:
+    # Vercel/serverless import path (backend treated as package)
+    from backend.test_control import (
+        PromptProcessor,
+        TestExecutor,
+        BugFixOrchestrator,
+        TestSpec,
+        TestResult,
+    )
+except Exception:
+    # Local backend cwd fallback
+    from test_control import (
+        PromptProcessor,
+        TestExecutor,
+        BugFixOrchestrator,
+        TestSpec,
+        TestResult,
+    )
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
