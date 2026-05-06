@@ -3,3 +3,9 @@ uvicorn[standard]
 httpx
 python-dotenv
 pydantic
+playwright
+selenium
+webdriver-manager
+pytest
+pytest-asyncio
+pillow

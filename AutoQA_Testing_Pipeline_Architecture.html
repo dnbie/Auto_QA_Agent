@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoQA Testing Pipeline Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+            color: #e0e0e0;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #86bc25 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            color: #a0a0a0;
+        }
+        
+        .diagram-wrapper {
+            background: #2d2d44;
+            border: 1px solid rgba(134, 188, 25, 0.2);
+            border-radius: 12px;
+            padding: 30px;
+            overflow-x: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            min-width: fit-content;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            font-size: 0.9em;
+            color: #707080;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(134, 188, 25, 0.1);
+            border: 1px solid rgba(134, 188, 25, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #86bc25;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #a0a0a0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AutoQA Testing Pipeline Architecture</h1>
+            <p>Complete 6-phase workflow: Ticket Creation → Test Execution → AI Fixes → Report Generation</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">8</div>
+                <div class="stat-label">Test Types Supported</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">6</div>
+                <div class="stat-label">Pipeline Phases</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">Live</div>
+                <div class="stat-label">HTTP Testing</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">AI</div>
+                <div class="stat-label">Auto-Fixes</div>
+            </div>
+        </div>
+        
+        <div class="diagram-wrapper">
+            <div class="mermaid">
+graph TD
+    A["📝 Section 1: CREATE TICKET"] -->|Generate with Claude| B["JSON Ticket Structure:<br/>- Title<br/>- Type Story/Bug/Task/Feature<br/>- Priority<br/>- Story Points<br/>- Acceptance Criteria List"]
+    
+    B -->|POST to Jira| C["Live Jira Issue Created<br/>SCRUM-XX"]
+    
+    C -->|Fetch via API| D["📊 Section 2: AUTOQA TESTS<br/>Test Generation & Execution"]
+    
+    D -->|Generate Test Cases| E["Test Suite Generated:<br/>🔥 Smoke 🔁 Regression ⚡ Full"]
+    
+    E -->|Test Coverage| T1["1️⃣ Smoke Tests<br/>Basic reachability"]
+    E -->|Test Coverage| T2["2️⃣ UI Tests<br/>HTML validation"]
+    E -->|Test Coverage| T3["3️⃣ Functional Tests<br/>User flows"]
+    E -->|Test Coverage| T4["4️⃣ Acceptance Tests<br/>AC criteria mapping"]
+    E -->|Test Coverage| T5["5️⃣ Performance Tests<br/>&lt;2.0s threshold"]
+    E -->|Test Coverage| T6["6️⃣ Security Tests<br/>XSS/SQL injection"]
+    E -->|Test Coverage| T7["7️⃣ Negative Tests<br/>Error handling"]
+    E -->|Test Coverage| T8["8️⃣ Cross-browser<br/>Health check"]
+    
+    T1 -->|Live HTTP Requests| HTTP["⚡ Backend: /api/run-tests<br/>Executes all tests in parallel<br/>Against user-provided QA URL"]
+    T2 --> HTTP
+    T3 --> HTTP
+    T4 --> HTTP
+    T5 --> HTTP
+    T6 --> HTTP
+    T7 --> HTTP
+    T8 --> HTTP
+    
+    HTTP -->|Returns| RESULTS["✅ Test Results<br/>- status pass/fail<br/>- duration<br/>- error message<br/>- pass rate %"]
+    
+    RESULTS -->|Pass?| PASS["✓ All Pass!<br/>Ready for Review"]
+    RESULTS -->|Fail?| FAIL["✗ Failures Found"]
+    
+    PASS --> SECTION5["📊 Section 5: GENERATE REPORT<br/>Claude AI writes narrative<br/>PDF export"]
+    
+    FAIL -->|Auto-fix Option| SECTION3["🧠 Section 3: CLAUDE AI FIX CODE<br/>1. Analyze failures<br/>2. Generate code fixes<br/>3. Up to 3 attempts<br/>4. Log each attempt"]
+    
+    SECTION3 -->|Code edited| SECTION4["🔁 Section 4: RE-RUN TESTS<br/>Execute again<br/>Compare before/after"]
+    
+    SECTION4 -->|New results| RESULTS
+    
+    SECTION5 -->|Report with| REPORT["📋 Final Report Contains:<br/>✓ Executive Summary<br/>✓ Test Coverage Analysis<br/>✓ Failure Analysis<br/>✓ Fix Actions<br/>✓ Remaining Issues<br/>✓ Recommendations"]
+    
+    REPORT --> SECTION6["📈 Section 6: DASHBOARD<br/>Metrics & Status"]
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>🎯 AutoQA Agent Testing Pipeline | Generated May 6, 2026</p>
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+        mermaid.contentLoaderMarked = false;
+    </script>
+</body>
+</html>
