@@ -4,13 +4,13 @@
   "installCommand": "npm install --prefix ./backend",
   "framework": null,
   "env": {
-    "JIRA_BASE_URL": "@jira_base_url",
-    "JIRA_EMAIL": "@jira_email",
-    "JIRA_API_TOKEN": "@jira_api_token",
-    "JIRA_PROJECT": "@jira_project",
-    "OPENAI_API_KEY": "@openai_api_key",
-    "OPENAI_MODEL": "@openai_model",
-    "GOOGLE_API_KEY": "@google_api_key"
+    "JIRA_BASE_URL": "@JIRA_BASE_URL",
+    "JIRA_EMAIL": "@JIRA_EMAIL",
+    "JIRA_API_TOKEN": "@JIRA_API_TOKEN",
+    "JIRA_PROJECT": "@JIRA_PROJECT",
+    "OPENAI_API_KEY": "@OPENAI_API_KEY",
+    "OPENAI_MODEL": "@OPENAI_MODEL",
+    "GOOGLE_API_KEY": "@GOOGLE_API_KEY"
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" }
