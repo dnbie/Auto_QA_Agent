@@ -1,7 +1,17 @@
 {
   "buildCommand": "cd frontend && npm ci && npm run build",
   "outputDirectory": "frontend/dist",
+  "installCommand": "npm install --prefix ./backend",
   "framework": null,
+  "env": {
+    "JIRA_BASE_URL": "@jira_base_url",
+    "JIRA_EMAIL": "@jira_email",
+    "JIRA_API_TOKEN": "@jira_api_token",
+    "JIRA_PROJECT": "@jira_project",
+    "OPENAI_API_KEY": "@openai_api_key",
+    "OPENAI_MODEL": "@openai_model",
+    "GOOGLE_API_KEY": "@google_api_key"
+  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" }
   ]
