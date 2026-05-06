@@ -236,7 +236,7 @@ export function AppProvider({ children }) {
       badges: [
         { cls: tc, label: ticket.type },
         { cls: 'b-med', label: ticket.priority },
-        { cls: 'b-med', label: `${ticket.storyPoints} SP` },
+        { cls: 'b-med', label: ticket.storyPoints != null ? `${ticket.storyPoints} SP` : '— SP' },
         { cls: 'b-ai', label: '✦ AI' },
       ],
     });

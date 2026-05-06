@@ -3,13 +3,23 @@ import re
 import json
 import base64
 import time
-from typing import Optional, List
+import asyncio
+from typing import Optional, List, Dict, Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+
+# Import test control module
+from test_control import (
+    PromptProcessor,
+    TestExecutor,
+    BugFixOrchestrator,
+    TestSpec,
+    TestResult,
+)
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
@@ -142,26 +152,60 @@ def _map_jira_issue(issue: dict) -> dict:
     assignee_name = assignee.get("displayName") or "Unassigned"
     assignee_id = assignee.get("accountId") or ""
     issue_type = (fields.get("issuetype") or {}).get("name", "Task")
-    story_points = fields.get("customfield_10016") or fields.get("story_points") or 3
+    # Try all known story point field names across Jira versions
+    story_points = (
+        fields.get("customfield_10016")   # Jira Cloud classic
+        or fields.get("customfield_10028") # Jira Cloud next-gen
+        or fields.get("customfield_10014") # Some Jira Server variants
+        or fields.get("story_points")
+        or fields.get("storyPoints")
+        or None
+    )
+    # Coerce to int if it came back as float (e.g. 3.0 → 3)
+    if story_points is not None:
+        try:
+            story_points = int(story_points)
+        except (TypeError, ValueError):
+            story_points = None
 
-    # Flatten Atlassian Document Format description to plain text
+    # Recursively extract all text from Atlassian Document Format (ADF)
+    def _extract_adf_text(node: dict) -> str:
+        """Walk any ADF node and return all text content joined by newlines."""
+        if not isinstance(node, dict):
+            return ""
+        if node.get("type") == "text":
+            return node.get("text", "")
+        parts = []
+        for child in node.get("content", []):
+            parts.append(_extract_adf_text(child))
+        sep = "\n" if node.get("type") in ("paragraph", "listItem", "orderedList", "bulletList", "heading") else " "
+        return sep.join(p for p in parts if p)
+
     desc_adf = fields.get("description") or {}
-    desc_text = ""
+    if isinstance(desc_adf, dict):
+        desc_text = _extract_adf_text(desc_adf).strip()
+    elif isinstance(desc_adf, str):
+        desc_text = desc_adf.strip()
+    else:
+        desc_text = ""
+
+    # Extract AC items: collect every non-empty line from the ADF list items
+    ac = []
     if isinstance(desc_adf, dict):
         for block in desc_adf.get("content", []):
-            for inline in block.get("content", []):
-                if inline.get("type") == "text":
-                    desc_text += inline.get("text", "") + " "
-    elif isinstance(desc_adf, str):
-        desc_text = desc_adf
-    desc_text = desc_text.strip()
+            # orderedList and bulletList blocks hold AC items
+            if block.get("type") in ("orderedList", "bulletList"):
+                for item in block.get("content", []):
+                    item_text = _extract_adf_text(item).strip().lstrip("•-* ")
+                    if len(item_text) > 4:
+                        ac.append(item_text)
 
-    # Extract acceptance criteria from description text lines starting with common AC patterns
-    ac = []
-    for line in desc_text.split("\n"):
-        stripped = line.strip().lstrip("•-* ")
-        if len(stripped) > 8:
-            ac.append(stripped)
+    # Fallback: if ADF had no lists, derive AC from plain-text lines
+    if not ac and desc_text:
+        for line in desc_text.splitlines():
+            stripped = line.strip().lstrip("•-* 0123456789.")
+            if len(stripped) > 8:
+                ac.append(stripped)
 
     return {
         "id": issue.get("key", ""),
@@ -172,7 +216,7 @@ def _map_jira_issue(issue: dict) -> dict:
         "assigneeId": assignee_id,
         "title": fields.get("summary", ""),
         "description": desc_text or fields.get("summary", ""),
-        "storyPoints": story_points,
+        "storyPoints": story_points,  # None if not set in Jira
         "ac": ac,
         "jiraUrl": f"{JIRA_SITE_BASE}/browse/{issue.get('key', '')}",
         "fromJira": True,
@@ -198,17 +242,29 @@ async def get_jira_tickets():
     jql = f"project = {JIRA_PROJECT} ORDER BY created DESC"
     all_issues = []
 
+    fields = "summary,description,priority,status,assignee,issuetype,customfield_10016"
+
     async with httpx.AsyncClient(timeout=20.0) as client:
-        # Fetch issues with full details expanded in search response
+        # Try the current POST /search/jql endpoint first (no expand to avoid 410)
         resp = await client.post(
             f"{JIRA_BASE}/rest/api/3/search/jql",
-            headers=headers,
+            headers={**headers, "Content-Type": "application/json"},
             json={
                 "jql": jql,
-                "expand": "changelog",
-                "fields": ["summary", "description", "priority", "status", "assignee", "issuetype", "customfield_10016"],
+                "fields": ["summary", "description", "priority", "status", "assignee", "issuetype", "customfield_10016", "story_points", "customfield_10028", "customfield_10014"],
+                "maxResults": 50,
             },
         )
+
+        # Fall back to the classic GET /search if POST /search/jql returns 4xx/410
+        if resp.status_code in (404, 410):
+            print(f"[Jira] POST /search/jql returned {resp.status_code}, falling back to GET /search")
+            resp = await client.get(
+                f"{JIRA_BASE}/rest/api/3/search",
+                headers=headers,
+                params={"jql": jql, "fields": "summary,description,priority,status,assignee,issuetype,customfield_10016,story_points,customfield_10028,customfield_10014", "maxResults": "50"},
+            )
+
         if resp.status_code == 401:
             raise HTTPException(status_code=401, detail="Jira auth failed — check JIRA_EMAIL and JIRA_API_TOKEN")
         if not resp.is_success:
@@ -620,6 +676,265 @@ async def jira_health():
         if resp.status_code == 403:
             raise HTTPException(status_code=403, detail="Forbidden: authenticated but no permission for this Jira site")
         raise HTTPException(status_code=resp.status_code, detail=f"Jira auth probe failed: {resp.text[:220]}")
+
+
+# ── ADVANCED TESTING WITH PLAYWRIGHT & SELENIUM ──────────────────────
+
+class GenerateTestsRequest(BaseModel):
+    """Request to generate tests from natural language prompt."""
+    prompt: str
+    ticket_ac: List[str]
+    test_depth: str = "regression"
+
+
+@app.post("/api/generate-tests-from-prompt")
+async def generate_tests_from_prompt(req: GenerateTestsRequest):
+    """Generate test cases from natural language prompt using AI."""
+    processor = PromptProcessor(openai_api_key=OPENAI_API_KEY, openai_model=OPENAI_MODEL)
+    
+    try:
+        tests = await processor.generate_tests_from_prompt(
+            prompt=req.prompt,
+            ticket_ac=req.ticket_ac,
+            test_depth=req.test_depth,
+        )
+        
+        return {
+            "generated": len(tests),
+            "depth": req.test_depth,
+            "tests": [
+                {
+                    "id": t.id,
+                    "name": t.name,
+                    "type": t.type,
+                    "browser": t.browser,
+                    "url_path": t.url_path,
+                    "assertions": t.assertions,
+                }
+                for t in tests
+            ],
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Test generation failed: {str(e)}")
+
+
+class RunAdvancedTestsRequest(BaseModel):
+    """Request to run advanced tests with Playwright/Selenium."""
+    ticket: Dict[str, Any]
+    tests: List[Dict[str, Any]]
+    target_url: str
+    auth_token: Optional[str] = None
+
+
+@app.post("/api/run-tests-advanced")
+async def run_tests_advanced(req: RunAdvancedTestsRequest):
+    """Execute tests using HTTP, Playwright (Chrome, Firefox, Safari, Edge), and Selenium."""
+    if not req.target_url:
+        raise HTTPException(status_code=400, detail="target_url is required")
+
+    # Convert dict tests to TestSpec objects
+    test_specs = []
+    for test_data in req.tests:
+        test_specs.append(TestSpec(**test_data))
+
+    executor = TestExecutor(
+        base_url=req.target_url,
+        auth_token=req.auth_token or TEST_AUTH_TOKEN,
+    )
+
+    try:
+        # Validate target is reachable
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            probe = await client.get(f"{req.target_url}/", follow_redirects=True)
+            if probe.status_code >= 500:
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"Target URL unhealthy: HTTP {probe.status_code}",
+                )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=502, detail=f"Cannot reach target URL: {str(e)}"
+        )
+
+    # Execute tests
+    start_time = time.time()
+    results = await executor.execute_tests(test_specs)
+    duration = time.time() - start_time
+
+    # Process results
+    total = len(results)
+    passed = len([r for r in results if r.status == "pass"])
+    failed = len([r for r in results if r.status == "fail"])
+    skipped = len([r for r in results if r.status == "skipped"])
+    pass_rate = round((passed / total) * 100) if total else 0
+
+    return {
+        "targetUrl": req.target_url,
+        "summary": {
+            "total": total,
+            "pass": passed,
+            "fail": failed,
+            "skipped": skipped,
+            "passRate": pass_rate,
+            "duration": round(duration, 2),
+        },
+        "tests": [
+            {
+                "id": r.test_id,
+                "name": r.test_name,
+                "type": r.test_type,
+                "browser": r.browser,
+                "status": r.status,
+                "duration": round(r.duration, 2),
+                "error": r.error_message,
+                "assertions_failed": r.assertion_failures,
+                "logs": r.logs,
+            }
+            for r in results
+        ],
+    }
+
+
+class AnalyzeFailuresRequest(BaseModel):
+    """Request to analyze test failures."""
+    ticket: Dict[str, Any]
+    failed_tests: List[Dict[str, Any]]
+
+
+@app.post("/api/analyze-failures")
+async def analyze_failures(req: AnalyzeFailuresRequest):
+    """Analyze test failures and provide AI-powered root cause analysis."""
+    # Convert failed tests to TestResult objects
+    failed_results = []
+    for test_data in req.failed_tests:
+        failed_results.append(
+            TestResult(
+                test_id=test_data.get("id", ""),
+                test_name=test_data.get("name", ""),
+                test_type=test_data.get("type", ""),
+                browser=test_data.get("browser"),
+                status="fail",
+                duration=test_data.get("duration", 0),
+                error_message=test_data.get("error"),
+                assertion_failures=test_data.get("assertions_failed", []),
+                logs=test_data.get("logs", []),
+            )
+        )
+
+    orchestrator = BugFixOrchestrator(
+        openai_api_key=OPENAI_API_KEY,
+        openai_model=OPENAI_MODEL,
+    )
+
+    try:
+        analysis = await orchestrator.analyze_failures(failed_results)
+        return {"analysis": analysis, "failed_count": len(failed_results)}
+    except Exception as e:
+        return {
+            "analysis": f"Error during analysis: {str(e)}",
+            "failed_count": len(failed_results),
+        }
+
+
+class GenerateFixPromptRequest(BaseModel):
+    """Request to generate a fix prompt for Claude."""
+    ticket: Dict[str, Any]
+    failed_tests: List[Dict[str, Any]]
+    attempt: int = 1
+
+
+@app.post("/api/generate-fix-prompt")
+async def generate_fix_prompt(req: GenerateFixPromptRequest):
+    """Generate a detailed fix prompt based on test failures."""
+    # Convert failed tests to TestResult objects
+    failed_results = []
+    for test_data in req.failed_tests:
+        failed_results.append(
+            TestResult(
+                test_id=test_data.get("id", ""),
+                test_name=test_data.get("name", ""),
+                test_type=test_data.get("type", ""),
+                browser=test_data.get("browser"),
+                status="fail",
+                duration=test_data.get("duration", 0),
+                error_message=test_data.get("error"),
+                assertion_failures=test_data.get("assertions_failed", []),
+            )
+        )
+
+    orchestrator = BugFixOrchestrator(
+        openai_api_key=OPENAI_API_KEY,
+        openai_model=OPENAI_MODEL,
+    )
+
+    try:
+        prompt = await orchestrator.generate_fix_prompt(
+            ticket=req.ticket,
+            failed_tests=failed_results,
+            attempt=req.attempt,
+        )
+        return {"prompt": prompt, "attempt": req.attempt}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate fix prompt: {str(e)}",
+        )
+
+
+@app.get("/api/test-capabilities")
+def test_capabilities():
+    """Return information about available test capabilities."""
+    return {
+        "testTypes": [
+            {"name": "Smoke", "description": "Basic reachability checks", "live": True},
+            {
+                "name": "UI",
+                "description": "HTML element validation",
+                "live": True,
+            },
+            {
+                "name": "Functional",
+                "description": "User flow testing",
+                "live": True,
+            },
+            {
+                "name": "Acceptance",
+                "description": "AC criteria mapping",
+                "live": True,
+            },
+            {
+                "name": "Performance",
+                "description": "Response time validation (<2.0s)",
+                "live": True,
+            },
+            {
+                "name": "Security",
+                "description": "XSS/SQL injection probes",
+                "live": True,
+            },
+            {
+                "name": "Negative",
+                "description": "Error handling validation",
+                "live": True,
+            },
+            {
+                "name": "Cross-browser",
+                "description": "Chrome, Firefox, Safari, Edge rendering",
+                "live": True,
+                "engines": ["Playwright", "Selenium"],
+            },
+        ],
+        "testDepths": [
+            {"id": "smoke", "name": "🔥 Smoke", "tests": 3},
+            {"id": "regression", "name": "🔁 Regression", "tests": 12},
+            {"id": "full", "name": "⚡ Full", "tests": 25},
+        ],
+        "browsers": ["chrome", "firefox", "safari", "edge"],
+        "engines": ["HTTP", "Playwright", "Selenium"],
+        "aiEnabled": bool(OPENAI_API_KEY),
+    }
 
 
 if __name__ == "__main__":
