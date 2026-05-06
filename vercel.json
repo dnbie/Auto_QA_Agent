@@ -3,15 +3,6 @@
   "outputDirectory": "frontend/dist",
   "installCommand": "npm install --prefix ./backend",
   "framework": null,
-  "env": {
-    "JIRA_BASE_URL": "@JIRA_BASE_URL",
-    "JIRA_EMAIL": "@JIRA_EMAIL",
-    "JIRA_API_TOKEN": "@JIRA_API_TOKEN",
-    "JIRA_PROJECT": "@JIRA_PROJECT",
-    "OPENAI_API_KEY": "@OPENAI_API_KEY",
-    "OPENAI_MODEL": "@OPENAI_MODEL",
-    "GOOGLE_API_KEY": "@GOOGLE_API_KEY"
-  },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" }
   ]
